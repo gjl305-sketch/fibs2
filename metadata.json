@@ -1,0 +1,7 @@
+{
+  "name": "Fibs",
+  "description": "A quantitative trading interface powered by a real-time analytical core. The theme is inspired by Fibonacci sequences and quantitative analysis, presented in a sleek gold-on-black interface.",
+  "requestFramePermissions": [
+    "microphone"
+  ]
+}

@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Fibs Quantitative Trading</title>
+    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Exo+2:wght@300;400;600;700;900&family=Roboto+Mono:wght@400;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- TradingView Lightweight Charts (Pinned to stable version 4.1.3) -->
+    <script src="https://unpkg.com/lightweight-charts@4.1.3/dist/lightweight-charts.standalone.production.js"></script>
+    <!-- SunCalc for accurate moon phase calculation -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/suncalc/1.8.0/suncalc.min.js"></script>
+    <style>
+      :root {
+        --color-copper: #B87333;
+        --color-copper-dark: #935b29;
+        --color-copper-glow: rgba(184, 115, 51, 0.5);
+        --color-blue-accent: #3b82f6;
+        --color-blue-glow: rgba(59, 130, 246, 0.4);
+        
+        --led-green: #39FF14;
+        --led-red: #FF3131;
+
+        --background-dark: #010004;
+        --surface-1: #18181B; /* Panels, cards */
+        --surface-2: #212124; /* Hover states, inputs */
+        --surface-3: #2a2a2d;
+
+        --border-color: rgba(255, 255, 255, 0.12);
+        --border-color-hover: var(--color-copper-glow);
+        --moon-shadow-transform: translateX(0%);
+      }
+
+      html {
+        box-sizing: border-box;
+      }
+      *, *:before, *:after {
+        box-sizing: inherit;
+      }
+
+      body {
+        font-family: 'Exo 2', sans-serif;
+        background-color: var(--background-dark);
+        color: #E5E7EB;
+        margin: 0;
+        padding: 0;
+        overflow: hidden;
+      }
+      body::before {
+        content: '';
+        position: fixed;
+        top: 0; left: 0;
+        width: 100%; height: 100%;
+        background-image:
+          radial-gradient(ellipse at 70% 30%, rgba(100, 120, 255, 0.15) 0%, transparent 50%),
+          radial-gradient(ellipse at 30% 70%, rgba(200, 100, 100, 0.15) 0%, transparent 50%),
+          radial-gradient(1px 1px at 20% 20%, white, transparent),
+          radial-gradient(1px 1px at 80% 30%, white, transparent),
+          radial-gradient(1px 1px at 50% 70%, white, transparent),
+          radial-gradient(1px 1px at 10% 90%, white, transparent),
+          radial-gradient(1px 1px at 90% 80%, white, transparent),
+          radial-gradient(2px 2px at 40% 50%, white, transparent),
+          radial-gradient(2px 2px at 60% 10%, white, transparent);
+        background-size: 100% 100%, 100% 100%, 50px 50px, 70px 70px, 80px 80px, 90px 90px, 60px 60px, 40px 40px, 100px 100px;
+        background-position: 0 0;
+        opacity: 0.8;
+        z-index: -1;
+      }
+
+      #root {
+        height: 100vh;
+        width: 100vw;
+        overflow: hidden;
+        position: relative;
+      }
+
+      .font-sans { font-family: 'Exo 2', sans-serif; }
+      .font-mono { font-family: 'Roboto Mono', monospace; }
+
+      /* Enhanced Glassmorphism */
+      .glassmorphic {
+        background-color: rgba(10, 10, 25, 0.5);
+        backdrop-filter: blur(20px);
+        -webkit-backdrop-filter: blur(20px);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        border-radius: 24px;
+        box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+      }
+      
+      /* Global Moon Styles */
+      .global-moon-container {
+        position: fixed;
+        top: -60px;
+        right: -80px;
+        width: 350px;
+        height: 350px;
+        transition: transform 0.8s cubic-bezier(0.25, 1, 0.5, 1), opacity 0.8s ease;
+        z-index: 0;
+        opacity: 0.7;
+        pointer-events: none;
+        will-change: transform, opacity;
+        perspective: 1200px; /* For 3D effect */
+        transform-style: preserve-3d;
+      }
+      .global-moon-container.prominent {
+        transform: scale(1.8);
+        opacity: 0.8;
+      }
+      .moon-3d {
+        width: 100%;
+        height: 100%;
+        border-radius: 50%;
+        position: relative;
+        transform-style: preserve-3d;
+        background-image: url('https://i.imgur.com/IM7gs3s.jpeg');
+        background-size: cover;
+        background-position: center center;
+        box-shadow: 
+            inset 0 0 80px 40px rgba(0,0,0,0.7), /* Softer shadow for curvature */
+            0 0 80px 10px rgba(173, 216, 230, 0.4), /* Subtle light blue glow */
+            0 0 25px 2px var(--color-copper-glow); /* Retain small accent */
+        transition: box-shadow 0.8s cubic-bezier(0.25, 1, 0.5, 1), transform 0.1s ease-out;
+        overflow: hidden; /* Crucial for the shadow overlay effect */
+      }
+      .moon-3d::before {
+        content: '';
+        position: absolute;
+        top: 0; left: 0;
+        width: 100%; height: 100%;
+        border-radius: 50%;
+        background: rgba(0,0,0,0.5); /* Slightly transparent for softer phase */
+        box-shadow: 0 0 25px 15px rgba(0,0,0,0.9); /* Sharper, darker terminator edge */
+        transform: var(--moon-shadow-transform);
+        transition: transform 1.5s cubic-bezier(0.4, 0, 0.2, 1);
+      }
+      
+      .global-moon-container.prominent .moon-3d {
+          box-shadow: 
+            inset 0 0 80px 40px rgba(0,0,0,0.7), /* Match base inset shadow */
+            0 0 250px 40px rgba(173, 216, 230, 0.6), /* Stronger light blue glow */
+            0 0 80px 15px var(--color-copper-glow); /* Stronger accent glow */
+      }
+
+      /* New MoonPhase Component Styles */
+      .moon {
+        width: 64px;
+        height: 64px;
+        border-radius: 50%;
+        position: relative;
+        overflow: hidden; /* This masks the shadow element */
+        background-image: url('https://i.imgur.com/IM7gs3s.jpeg');
+        background-size: cover;
+        background-position: center;
+        box-shadow: 
+            inset 0 0 15px 8px rgba(0,0,0,0.7), /* Softer shadow for curvature */
+            0 0 15px 2px rgba(173, 216, 230, 0.3); /* Subtle light blue glow */
+        flex-shrink: 0;
+      }
+      .moon-phase {
+          position: absolute;
+          top: 0;
+          left: 0;
+          width: 100%;
+          height: 100%;
+          border-radius: 50%;
+          background: rgba(0,0,0,0.5); /* Slightly transparent for softer phase */
+          box-shadow: 0 0 15px 8px rgba(0,0,0,0.9); /* Sharper, darker terminator edge */
+      }
+      
+       /* Global Clock Styles */
+      .global-world-clock {
+        position: fixed;
+        top: 20px;
+        right: 250px; /* Position next to the moon */
+        z-index: 35; /* Above moon and content, below modals */
+        pointer-events: none;
+      }
+      .world-clock-time {
+        text-shadow: 0 0 8px var(--color-copper-glow), 0 0 12px var(--color-blue-glow);
+      }
+
+      /* Bubble pulse animations */
+      @keyframes pulse-green {
+          0%, 100% { box-shadow: 0 0 15px 0px rgba(57, 255, 20, 0.3); }
+          50% { box-shadow: 0 0 25px 8px rgba(57, 255, 20, 0.1); }
+      }
+      @keyframes pulse-red {
+          0%, 100% { box-shadow: 0 0 15px 0px rgba(255, 49, 49, 0.3); }
+          50% { box-shadow: 0 0 25px 8px rgba(255, 49, 49, 0.1); }
+      }
+      
+      .line-clamp-3 {
+        overflow: hidden;
+        display: -webkit-box;
+        -webkit-box-orient: vertical;
+        -webkit-line-clamp: 3;
+      }
+      
+      /* Styles for Modals */
+      .fullscreen-modal-overlay, .detail-modal-overlay, .account-analysis-overlay, .news-modal-overlay {
+        position: fixed;
+        inset: 0;
+        background-color: rgba(0, 0, 0, 0.7);
+        backdrop-filter: blur(8px);
+        -webkit-backdrop-filter: blur(8px);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 50;
+      }
+      .fullscreen-modal-content {
+        background-color: var(--surface-1);
+        border-radius: 24px;
+        border: 1px solid var(--border-color);
+        width: 95vw;
+        height: 95vh;
+        box-shadow: 0 25px 50px -12px rgb(0 0 0 / 0.25);
+      }
+      .detail-modal-content, .account-analysis-panel, .news-modal-content {
+        background-color: rgba(10, 10, 25, 0.6);
+        backdrop-filter: blur(20px);
+        -webkit-backdrop-filter: blur(20px);
+        border-radius: 24px;
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+      }
+
+      /* Floating News Bubble Styles */
+      .floating-news-bubble {
+        cursor: pointer;
+        background-color: rgba(10, 10, 25, 0.7);
+        backdrop-filter: blur(10px);
+        -webkit-backdrop-filter: blur(10px);
+        border: 1px solid var(--color-blue-glow);
+        border-radius: 1rem;
+        box-shadow: 0 0 20px 4px var(--color-blue-glow);
+        animation: pulse-blue 4s infinite;
+      }
+      @keyframes pulse-blue {
+          0%, 100% { box-shadow: 0 0 20px 4px var(--color-blue-glow); }
+          50% { box-shadow: 0 0 30px 10px rgba(59, 130, 246, 0.2); }
+      }
+      .floating-news-bubble .star-icon {
+        position: absolute;
+        top: -8px;
+        right: -8px;
+        background-color: var(--surface-2);
+        border-radius: 9999px;
+        padding: 4px;
+        color: #facc15; /* yellow-400 */
+        transition: transform 0.2s, color 0.2s;
+      }
+       .floating-news-bubble .star-icon:hover {
+        transform: scale(1.2);
+        color: #fde047; /* yellow-300 */
+      }
+
+      /* Chart Lab Styles */
+      .chart-lab-container {
+        background-color: rgba(1, 0, 4, 0.8);
+        backdrop-filter: blur(15px);
+        -webkit-backdrop-filter: blur(15px);
+      }
+      .chart-lab-historical-viewer .chart-wrapper {
+        border-radius: 12px;
+        box-shadow: 0 0 15px -5px var(--border-color);
+        transition: box-shadow 0.3s ease;
+      }
+      .watch-tower-grid .mini-chart {
+        border-radius: 12px;
+        position: relative;
+        overflow: hidden;
+        border: 2px solid transparent;
+        transition: border-color 0.5s ease, box-shadow 0.5s ease;
+      }
+      .watch-tower-grid .mini-chart.positive {
+        border-color: rgba(57, 255, 20, 0.5);
+        box-shadow: 0 0 15px 0px rgba(57, 255, 20, 0.3);
+      }
+      .watch-tower-grid .mini-chart.negative {
+        border-color: rgba(255, 49, 49, 0.5);
+        box-shadow: 0 0 15px 0px rgba(255, 49, 49, 0.3);
+      }
+    </style>
+    <script type="importmap">
+    {
+      "imports": {
+        "react/": "https://aistudiocdn.com/react@^19.2.0/",
+        "react": "https://aistudiocdn.com/react@^19.2.0",
+        "@google/genai": "https://aistudiocdn.com/@google/genai@^1.27.0",
+        "react-dom/": "https://aistudiocdn.com/react-dom@^19.2.0/",
+        "recharts": "https://aistudiocdn.com/recharts@^3.3.0",
+        "framer-motion": "https://aistudiocdn.com/framer-motion@^12.23.24"
+      }
+    }
+    </script>
+<link rel="stylesheet" href="/index.css">
+</head>
+<body>
+    <div id="root"></div>
+    <script type="module" src="/index.tsx"></script>
+</body>
+</html>
